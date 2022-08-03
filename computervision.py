@@ -45,7 +45,6 @@ def generateTiles(tilesFolder):
                 crop_image = image[x:w, y:h]
 
                 cv2.imshow("Cropped", crop_image)
-                time.sleep(3)
                 cv2.imwrite(directory + fileName, crop_image)
                 
                 num_images = (len(image) / 150) * (len(image[x]) / 150) 
