@@ -4,30 +4,6 @@ import time
 
 tilesDirectory = "C:\\Users\\dagmn\\Pictures\\3D Map Dataset\\tiles - 40m"
 
-def classifyData(rawimage):
-    classes = ['building', 'field', 'road', 'tree', 'path', 'house']
-    process_data = []
-
-    for x in range(0, len(rawimage), 150):
-        for y in range(0, len(rawimage[x]), 150):
-            
-            w= x + 150
-            h= y + 150
-            crop_image = image[x:w, y:h]
-
-            cv2.imshow("Cropped", crop_image)
-            cv2.waitKey(0)
-
-            item = input("Where does this class belong to?")
-            
-            process_data.append({'class': item, 'image': crop_image})
-            if(item not in classes):
-                classes.append(item)
-
-            i = i + 1
-    
-    return process_data
-
 def generateTiles(tilesFolder):
     i = 0
     index = 1
@@ -64,10 +40,3 @@ def writeTileImages():
                 cv2.imwrite(directory + "\\" + item['class'] + str(i) + '.png', crop_image)
     
 generateTiles(tilesDirectory)
-
-        
-
-
-
-
-        

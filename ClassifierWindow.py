@@ -2,69 +2,118 @@ from tkinter import *
 from PIL import ImageTk, Image
 import cv2
 import math
+import keyboard
 
 window = Tk()
 window.title("Classifier for Halliday")
-window.configure(width=600, height=300)
+window.configure(width=400, height=300)
 window.configure(bg='lightgray')
 
-submitButton = Button(window, text='Submit')
-submitButton.place(x=400, y=40)
-
-addButton = Button(window, text='Add')
-addButton.place(x=470, y=40)
-
-classTextField = Entry(window)
-classTextField.place(x=400, y=10)
-
-# image1 = Image.open("dataset/training/building/building1.png")
-# print(list(image1.getdata()))
-
-canvas = Canvas(window, width=150, height=150)
-canvas.place(x=200, y=0)
+options = [
+    "Building",
+    "Field",
+    "Tree",
+    "Road",
+    "Roof",
+    "Train",
+    "Plane"
+]
+objectClass = StringVar()
+objectClass.set( "Building" )
+objectClassName = StringVar()
+classDropDown = OptionMenu( window, objectClass, *options )
+classImages = []
 
 objectCoordinates = []
 image = cv2.imread("dataset/training/building/building1.png")
 
-# Circle Formula: (x - h)^2 + (y - k)^2 = r^2
-def mouse_callback(event, x, y, flags, params):
-    if event == 1:
-        getPixelsFromBrush(x, y, 5)
-def rgb_to_hex(rgb):
-    return '%02x%02x%02x' % rgb
+objectImage = Image.new('RGB', (image.shape[0], image.shape[1]), color=(255, 255, 255))
+test = ImageTk.PhotoImage(objectImage)
+label1 = Label(image=test)
 
-def getPixelsFromBrush(x, y, radius):
-    global objectCoordinates, image, sample
+def mouse_callback(event, x, y, flags, params):
+    copyPressed = True if keyboard.is_pressed('x') else False
+    erasePressed = True if keyboard.is_pressed('e') else False
+
+    if event == cv2.EVENT_MOUSEMOVE and copyPressed:
+        getPixelsFromBrush(x, y, 10, erase=False)
+    if event == cv2.EVENT_MOUSEMOVE and erasePressed:
+        getPixelsFromBrush(x, y, 10, erase=True)
+
+def getPixelsFromBrush(x, y, radius, erase):
+    global objectCoordinates, image, objectImage, label1
+    label1.destroy()
 
     for i in range(0,radius):
-            for j in range(0,radius):
-                if(checkIfInsideBrush(x + i, y + j, x, y, radius)):
-                    sample = Image.new('RGB', (150, 150))
-                    test = ImageTk.PhotoImage(sample)
-                    label1 = Label(image=test)
-                    label1.image = test
-                    label1.place(x=0, y=0)
+        for j in range(0,radius):
+            if(checkIfInsideBrush(x + i, y + j)):
+                color = image[y+j,x+i] if erase else [255, 255, 255]
+                objectCoordinates.append((x + i, y + j, color))
+                objectImage.putpixel( (x + i,y + j), (color[2], color[0], color[1]))
 
-                    color = image[x+i,y+j]
-                    objectCoordinates.append((x + i, y + j, color))
-                    print((color[0], color[1], color[2]))
-                    sample.putpixel( (x + i,y + i), (color[0], color[1], color[2]))
+    test = ImageTk.PhotoImage(objectImage)
+    label1 = Label(image=test)
+    label1.image = test
+    label1.place(x=0, y=0)
 
-def checkIfInsideBrush(x, y, centerx, centery, radius):
+def checkIfInsideBrush(x, y):
     global image
     
-    if((math.pow((x - centerx), 2) + math.pow((y - centery), 2))  <= math.pow(radius, 2)):
-        if(x < image.shape[0] and y < image.shape[1]):
-            return True
+    if(x < image.shape[0] and y < image.shape[1]):
+        return True
     
     return False
 
+def submitClass():
+    global options, classDropDown, classImages, objectImage, classLabel
+    className = objectClassName.get()
 
+    if not (className == ''):
+        if not(options.__contains__(className)):
+            options.append(className)
+            classDropDown.destroy()
+            classDropDown = OptionMenu( window, objectClass, *options )
+            classDropDown.pack()
+            classDropDown.place(x=200, y=40) 
+    else:
+        className = objectClass.get()
+    
+    classImages.append({className:objectImage})
 
-cv2.namedWindow('Sample', cv2.WINDOW_NORMAL)
-cv2.setMouseCallback('Sample', mouse_callback)
+    classLabel = Label(window, text=str(len(classImages)))
+    classLabel.place(x=320, y=80)
 
-cv2.imshow("Sample", image)
+def addClass():
+    global image, objectImage, classImages, label1
+    objectImage = Image.new('RGB', (image.shape[0], image.shape[1]), color=(255, 255, 255))
+    test = ImageTk.PhotoImage(objectImage)
+    label1.destroy()
+    label1 = Label(image=test)
+    label1.place(x=0, y=0)
+
+def finish():
+    print()
+
+classDropDown.pack()
+classDropDown.place(x=200, y=40)
+
+submitButton = Button(window, text='Submit', command=submitClass)
+submitButton.place(x=200, y=80)
+
+addButton = Button(window, text='Add', command=addClass)
+addButton.place(x=270, y=80)
+
+finishButton = Button(window, text='Finish', command=finish())
+finishButton.place(x=340, y=80)
+
+classTextField = Entry(window, textvariable=objectClassName)
+classTextField.place(x=200, y=10)
+
+classLabel = Label(window, text=str(len(classImages)))
+classLabel.place(x=320, y=80)
+
+cv2.namedWindow('What objects are there?', cv2.WINDOW_NORMAL)
+cv2.setMouseCallback('What objects are there?', mouse_callback)
+cv2.imshow("What objects are there?", image)
 
 window.mainloop()
-
