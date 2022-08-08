@@ -1,10 +1,12 @@
 from tkinter import *
 from PIL import ImageTk, Image
+from numpy import asarray
 import cv2
 import math
 import keyboard
 import os
 import csv
+import base64
 
 window = Tk()
 window.title("Classifier for Halliday")
@@ -22,10 +24,11 @@ objectClass.set( options[0] )
 objectClassName = StringVar()
 classDropDown = OptionMenu( window, objectClass, *options )
 classImages = []
+history = []
 
 objectCoordinates = []
 image = cv2.imread(tilesDirectory + '\\' + tiles[tileIndex])
-objectImage = Image.new('RGB', (image.shape[0], image.shape[1]), color=(255, 255, 255))
+objectImage = Image.new('RGBA', (image.shape[0], image.shape[1]), color=(255, 255, 255, 0))
 test = ImageTk.PhotoImage(objectImage)
 label1 = Label(image=test)
 
@@ -45,9 +48,9 @@ def getPixelsFromBrush(x, y, radius, erase):
     for i in range(0,radius):
         for j in range(0,radius):
             if(checkIfInsideBrush(x + i, y + j)):
-                color = [255, 255, 255] if erase else image[y+j,x+i]
+                color = [255, 255, 255, 0] if erase else image[y+j,x+i]
                 objectCoordinates.append((x + i, y + j, color))
-                objectImage.putpixel( (x + i,y + j), (color[2], color[0], color[1]))
+                objectImage.putpixel( (x + i,y + j), (color[2], color[0], color[1], color[3]) if erase else (color[2], color[0], color[1]))
 
     test = ImageTk.PhotoImage(objectImage)
     label1 = Label(image=test)
@@ -63,7 +66,7 @@ def checkIfInsideBrush(x, y):
     return False
 
 def submitClass():
-    global options, classDropDown, classImages, objectImage, classLabel
+    global options, classDropDown, classImages, objectImage, classLabel, tiles, tileIndex
     className = objectClassName.get()
 
     if not (className == ''):
@@ -77,15 +80,16 @@ def submitClass():
             os.mkdir(path="C:\\Users\\dagmn\\Documents\\Projects\\Python train\\dataset\\collection\\" + className)
     else:
         className = objectClass.get()
-    
-    classImages.append((className,objectImage))
+
+    tileName = tiles[tileIndex]
+    classImages.append((className, objectImage, tileName))
 
     classLabel = Label(window, text=str(len(classImages)))
     classLabel.place(x=320, y=80)
 
 def addClass():
     global image, objectImage, classImages, label1
-    objectImage = Image.new('RGB', (image.shape[0], image.shape[1]), color=(255, 255, 255))
+    objectImage = Image.new('RGBA', (image.shape[0], image.shape[1]), color=(255, 255, 255, 0))
     test = ImageTk.PhotoImage(objectImage)
     label1.destroy()
     label1 = Label(image=test)
@@ -97,16 +101,21 @@ def finish():
     writeToDataset()
     classImages.clear()
     
-    tileIndex = tileIndex + 1
+    while True:  
+        tileIndex = tileIndex + 1
+        
+        if not history.__contains__(tiles[tileIndex]):
+            break
+
     image = cv2.imread(tilesDirectory + '\\' + tiles[tileIndex])
     cv2.imshow("What objects are there?", image)
 
 def writeToDataset():
     global classImages
-    csvHeader = ['filename', 'classname', 'destination', 'objectdata']
+    csvHeader = ['filename', 'previousfname', 'classname', 'destination', 'objectdata']
 
     for image in classImages:
-        className, objectImage = image
+        className, objectImage, previousfname = image
         directory = classDirectory + className + '\\'
 
         if(os.path.exists(directory + 'dataset.csv')):
@@ -126,16 +135,34 @@ def writeToDataset():
         fileName = className.lower() + str(index) + '.png'
         writer = csv.writer(outputFile)
 
-        writer.writerow([fileName, className, directory, objectImage])
-        cv2.imwrite(directory + fileName, objectImage)
+        writer.writerow([fileName, previousfname, className, directory, base64.b64encode(asarray(objectImage))])
+        objectImage.save(directory + fileName)
         outputFile.close()
 
 def selectAll():
     global image, objectImage
-    objectImage = image
+    objectImage = Image.open(tilesDirectory + '\\' + tiles[tileIndex])
     submitClass()
     finish()
     
+def traceBackPrevious():
+    global tileIndex, tiles, image
+
+    for className in os.listdir(classDirectory):
+        csvDirectory = f'{classDirectory}{className}\\dataset.csv'
+
+        if os.path.exists(csvDirectory):
+            inputFile = open(csvDirectory, 'r')
+
+            for row in csv.reader(inputFile):
+                if not (row[1] == 'previousfname' and history.__contains__(row[1])):
+                    history.append(row[1])
+    
+    while history.__contains__(tiles[tileIndex]):
+        tileIndex = tileIndex + 1
+        image = cv2.imread(tilesDirectory + '\\' + tiles[tileIndex])
+        cv2.imshow("What objects are there?", image)
+
 classDropDown.pack()
 classDropDown.place(x=200, y=40)
 
@@ -159,6 +186,7 @@ classLabel.place(x=320, y=80)
 
 cv2.namedWindow('What objects are there?', cv2.WINDOW_NORMAL)
 cv2.setMouseCallback('What objects are there?', mouse_callback)
-cv2.imshow("What objects are there?", image)
+
+traceBackPrevious()
 
 window.mainloop()
