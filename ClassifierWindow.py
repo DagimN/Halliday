@@ -1,6 +1,7 @@
 from tkinter import *
 from PIL import ImageTk, Image
 from numpy import asarray
+from shapely.geometry import Point, Polygon
 import cv2
 import math
 import keyboard
@@ -26,6 +27,11 @@ classDropDown = OptionMenu( window, objectClass, *options )
 classImages = []
 history = []
 
+#TODO: Improve
+polygonCoords = []
+polygonCoordsX = []
+polygonCoordsY = []
+
 objectCoordinates = []
 image = cv2.imread(tilesDirectory + '\\' + tiles[tileIndex])
 objectImage = Image.new('RGBA', (image.shape[0], image.shape[1]), color=(255, 255, 255, 0))
@@ -35,11 +41,14 @@ label1 = Label(image=test)
 def mouse_callback(event, x, y, flags, params):
     copyPressed = True if keyboard.is_pressed('x') else False
     erasePressed = True if keyboard.is_pressed('e') else False
+    tagPressed = True if keyboard.is_pressed('p') else False
 
     if event == cv2.EVENT_MOUSEMOVE and copyPressed:
         getPixelsFromBrush(x, y, 10, erase=False)
     if event == cv2.EVENT_MOUSEMOVE and erasePressed:
         getPixelsFromBrush(x, y, 10, erase=True)
+    if event == cv2.EVENT_LBUTTONDOWN:
+        getPixelsFromPolygon(x, y)
 
 def getPixelsFromBrush(x, y, radius, erase):
     global objectCoordinates, image, objectImage, label1
@@ -56,6 +65,41 @@ def getPixelsFromBrush(x, y, radius, erase):
     label1 = Label(image=test)
     label1.image = test
     label1.place(x=0, y=0)
+
+def getPixelsFromPolygon(x, y):
+    global polygonCoordsX, polygonCoordsY, image, objectCoordinates, objectImage, label1
+    label1.destroy()
+
+    if not polygonCoordsX.__contains__((x, y)):
+        polygonCoordsX.append((x, y))
+        polygonCoordsY.append((y, x))
+        polygonCoords.append((x, y))
+
+        polygonCoordsX.sort()
+        polygonCoordsY.sort()
+        arrayInitialX, yitemp = polygonCoordsX[0]
+        arrayInitialY, xitemp = polygonCoordsY[0]
+        arrayFinalX, yftemp = polygonCoordsX[len(polygonCoordsX) - 1]
+        arrayFinalY, xftemp = polygonCoordsY[len(polygonCoordsY) - 1]
+        
+        rangeX = arrayFinalX - arrayInitialX
+        rangeY = arrayFinalY - arrayInitialY
+
+        if len(polygonCoordsX) > 2:
+            for i in range(0, rangeX):
+                for j in range(0, rangeY):
+                    polygon = Polygon(polygonCoords)
+                    point = Point(arrayInitialX + i, arrayInitialY + j)
+
+                    if point.within(polygon):
+                        color = image[arrayInitialY+j,arrayInitialX+i]
+                        objectCoordinates.append((arrayInitialX + i, arrayInitialY + j, color))
+                        objectImage.putpixel( (arrayInitialX + i, arrayInitialY + j), (color[2], color[0], color[1]))
+        
+        test = ImageTk.PhotoImage(objectImage)
+        label1 = Label(image=test)
+        label1.image = test
+        label1.place(x=0, y=0)
 
 def checkIfInsideBrush(x, y):
     global image
@@ -88,27 +132,39 @@ def submitClass():
     classLabel.place(x=320, y=80)
 
 def addClass():
-    global image, objectImage, classImages, label1
+    global image, objectImage, classImages, label1, polygonCoords, polygonCoordsX, polygonCoordsY
     objectImage = Image.new('RGBA', (image.shape[0], image.shape[1]), color=(255, 255, 255, 0))
     test = ImageTk.PhotoImage(objectImage)
     label1.destroy()
     label1 = Label(image=test)
     label1.place(x=0, y=0)
 
+    polygonCoords.clear()
+    polygonCoordsX.clear()
+    polygonCoordsY.clear()
+
 def finish():
-    global image, tiles, tileIndex, classImages
+    global image, tiles, tileIndex, classImages, polygonCoords, polygonCoordsX, polygonCoordsY
     
     writeToDataset()
     classImages.clear()
     
-    while True:  
-        tileIndex = tileIndex + 1
-        
-        if not history.__contains__(tiles[tileIndex]):
-            break
+    polygonCoords.clear()
+    polygonCoordsX.clear()
+    polygonCoordsY.clear()
 
-    image = cv2.imread(tilesDirectory + '\\' + tiles[tileIndex])
-    cv2.imshow("What objects are there?", image)
+    if tileIndex < len(tiles) - 1:
+        while True:  
+            tileIndex = tileIndex + 1
+        
+            if not history.__contains__(tiles[tileIndex]):
+                break
+        
+        image = cv2.imread(tilesDirectory + '\\' + tiles[tileIndex])
+        cv2.imshow("What objects are there?", image)
+    else:
+        #TODO: Use a dialog to print the message
+        print('Classification Completed')
 
 def writeToDataset():
     global classImages
