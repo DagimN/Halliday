@@ -32,7 +32,6 @@ polygonCoords = []
 polygonCoordsX = []
 polygonCoordsY = []
 
-objectCoordinates = []
 image = cv2.imread(tilesDirectory + '\\' + tiles[tileIndex])
 objectImage = Image.new('RGBA', (image.shape[0], image.shape[1]), color=(255, 255, 255, 0))
 test = ImageTk.PhotoImage(objectImage)
@@ -93,7 +92,6 @@ def getPixelsFromPolygon(x, y):
 
                     if point.within(polygon):
                         color = image[arrayInitialY+j,arrayInitialX+i]
-                        objectCoordinates.append((arrayInitialX + i, arrayInitialY + j, color))
                         objectImage.putpixel( (arrayInitialX + i, arrayInitialY + j), (color[2], color[0], color[1]))
         
         test = ImageTk.PhotoImage(objectImage)
@@ -112,6 +110,7 @@ def checkIfInsideBrush(x, y):
 def submitClass():
     global options, classDropDown, classImages, objectImage, classLabel, tiles, tileIndex
     className = objectClassName.get()
+    pixelData = []
 
     if not (className == ''):
         if not(options.__contains__(className)):
@@ -127,7 +126,7 @@ def submitClass():
 
     tileName = tiles[tileIndex]
     classImages.append((className, objectImage, tileName))
-
+    
     classLabel = Label(window, text=str(len(classImages)))
     classLabel.place(x=320, y=80)
 
@@ -144,11 +143,11 @@ def addClass():
     polygonCoordsY.clear()
 
 def finish():
-    global image, tiles, tileIndex, classImages, polygonCoords, polygonCoordsX, polygonCoordsY
+    global image, tiles, tileIndex, classImages, polygonCoords, polygonCoordsX, polygonCoordsY, objectImage, label1
     
     writeToDataset()
+
     classImages.clear()
-    
     polygonCoords.clear()
     polygonCoordsX.clear()
     polygonCoordsY.clear()
@@ -162,13 +161,23 @@ def finish():
         
         image = cv2.imread(tilesDirectory + '\\' + tiles[tileIndex])
         cv2.imshow("What objects are there?", image)
+        
+        objectImage = Image.new('RGBA', (image.shape[0], image.shape[1]), color=(255, 255, 255, 0))
+        test = ImageTk.PhotoImage(objectImage)
+        label1.destroy()
+        label1 = Label(image=test)
+        label1.place(x=0, y=0)
+
+        classLabel = Label(window, text='0')
+        classLabel.place(x=320, y=80)
     else:
         #TODO: Use a dialog to print the message
         print('Classification Completed')
 
 def writeToDataset():
-    global classImages
-    csvHeader = ['filename', 'previousfname', 'classname', 'destination', 'objectdata']
+    global classImages, polygonCoords
+    csvHeader = ['filename', 'previousfname', 'classname', 'destination', 'vertices']
+    defaultPolygon = [(0, 0), (0, 150), (150, 150), (150, 0)]
 
     for image in classImages:
         className, objectImage, previousfname = image
@@ -191,7 +200,7 @@ def writeToDataset():
         fileName = className.lower() + str(index) + '.png'
         writer = csv.writer(outputFile)
 
-        writer.writerow([fileName, previousfname, className, directory, base64.b64encode(asarray(objectImage))])
+        writer.writerow([fileName, previousfname, className, directory, polygonCoords if len(polygonCoords) > 0 else defaultPolygon])
         objectImage.save(directory + fileName)
         outputFile.close()
 
@@ -218,6 +227,7 @@ def traceBackPrevious():
         tileIndex = tileIndex + 1
         image = cv2.imread(tilesDirectory + '\\' + tiles[tileIndex])
         cv2.imshow("What objects are there?", image)
+        print(tilesDirectory + '\\' + tiles[tileIndex])
 
 classDropDown.pack()
 classDropDown.place(x=200, y=40)
@@ -242,6 +252,7 @@ classLabel.place(x=320, y=80)
 
 cv2.namedWindow('What objects are there?', cv2.WINDOW_NORMAL)
 cv2.setMouseCallback('What objects are there?', mouse_callback)
+cv2.imshow('What objects are there?', image)
 
 traceBackPrevious()
 
