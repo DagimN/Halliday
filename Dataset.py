@@ -1,6 +1,6 @@
 import os
 from PIL import Image
-from torck.utils.data import Dataset
+from torch.utils.data import Dataset
 import numpy as np
 
 class HallidayDataset(Dataset):
@@ -13,9 +13,9 @@ class HallidayDataset(Dataset):
     def __len__(self):
         return len(self.images)
     
-    def _getitem__(self, index):
+    def __getitem__(self, index):
         img_path = os.path.join(self.image_dir, self.images[index])
-        mask_apth = os.path.join(self.mask_dir, self.images[index].replace('.jpg', '_mask.gif'))
+        mask_path = os.path.join(self.mask_dir, self.images[index].replace('.png', '.gif'))
         image = np.array(Image.open(img_path).convert('RGB'))
         mask = np.array(Image.open(mask_path).convert("L"), dtype=np.float32)
         mask[mask == 255.0] = 1.0

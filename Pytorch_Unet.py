@@ -13,29 +13,30 @@ from utils import (
     save_predictions_as_imgs,
 )
 
+increment = 1
 LEARNING_RATE = 1e-4
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 32
+DEVICE = "cpu"
+BATCH_SIZE = 12
 NUM_EPOCHS = 100
 NUM_WORKERS = 2
-IMAGE_HEIGHT = 160
-IMAGE_WIDTH = 240
+IMAGE_HEIGHT = 150
+IMAGE_WIDTH = 150
 PIN_MEMORY = True
 LOAD_MODEL = True
-TRAIN_IMG_DIR = "dataset/training/"
-TRAIN_MASK_DIR = "dataset/training_masks/"
-VAL_IMG_DIR = "dataset/val_images/"
-VAL_MASK_DIR = "dataset/val_masks" 
+TRAIN_IMG_DIR = "dataset/training/Building/train_images"
+TRAIN_MASK_DIR = "dataset/training/Building/train_masks"
+VAL_IMG_DIR = "dataset/training/Building/val_images"
+VAL_MASK_DIR = "dataset/training/Building/val_masks" 
 
 class DoubleConv(nn.Module):
     def __init__(self, in_channels, out_channels):
         super(DoubleConv, self).__init__()
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 3, 1, 1, bias=False),
+            nn.Conv2d(in_channels, out_channels, 3, 1, padding=1, bias=False),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True),
 
-            nn.Conv2d(out_channels, out_channels, 3, 1, 1, bias=False),
+            nn.Conv2d(out_channels, out_channels, 3, 1, padding=1, bias=False),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True),
         )
@@ -63,6 +64,11 @@ class UNET(nn.Module):
 
     def forward(self, x):
         skip_connections = []
+        print(x.shape)
+        
+        if x.shape[3] == 3:
+            x = x.permute(0, 3, 1, 2)
+            print(x.shape)
 
         for down in self.downs:
             x = down(x)
@@ -77,11 +83,12 @@ class UNET(nn.Module):
             skip_connection = skip_connections[idx//2]
 
             if x.shape != skip_connection.shape:
-                x = TF.resize(x, size=skip_connection.shape[2:1])
-
+                x = TF.resize(x, size=skip_connection.shape[2:])
+                
             concat_skip = torch.cat((skip_connection, x), dim=1)
             x = self.ups[idx+1](concat_skip)
-
+        
+        
         return self.final_conv(x)
         
 def test():
@@ -97,10 +104,10 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
 
         for batch_idx, (data, targets) in enumerate(loop):
             data = data.to(device=DEVICE)
-            targets = tagets.float().unsqueeze(1).to(device=DEVICE)
+            targets = targets.float().unsqueeze(1).to(device=DEVICE)
 
             # forward
-            with torch.cuda.amp.autocast():
+            with torch.cpu.amp.autocast():
                 predictions = model(data)
                 loss = loss_fn(predictions, targets)
             
@@ -115,9 +122,10 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
 
 
 def main():
+    global increment
     train_transforms = A.Compose(
         [
-            A.Resize(height-IMAGE_HEIGHT, width=IMAGE_WIDTH),
+            A.Resize(height=IMAGE_HEIGHT, width=IMAGE_WIDTH),
             A.Rotate(limit=35, p=1.0),
             A.HorizontalFlip(p=0.5),
             A.VerticalFlip(p=0.1),
@@ -152,7 +160,7 @@ def main():
         VAL_IMG_DIR,
         VAL_MASK_DIR,
         BATCH_SIZE,
-        train_transform,
+        train_transforms,
         val_transforms,
         NUM_WORKERS,
         PIN_MEMORY
@@ -171,12 +179,12 @@ def main():
             "state_dict": model.state_dict(),
             "optimizer": optimizer.state_dict()
         }
-
         save_checkpoint(checkpoint)
 
-        check_accuracy(val_laoder, model, device=DEVICE)
+        check_accuracy(val_loader, model, device=DEVICE)
 
         save_predictions_as_imgs(val_loader, model, folder="saved_images/", device=DEVICE)
+
 
 if __name__ == "__main__":
     main()
