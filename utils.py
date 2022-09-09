@@ -71,4 +71,4 @@ def save_predictions_as_imgs(loader, model, folder="save_images/", device="cpu")
         torchvision.utils.save_image(preds, f"{folder}pred_{idx}.png")
         torchvision.utils.save_image(y.unsqueeze(1), f"{folder}pred_{idx}-{idx}.png")
     
-    model.train()
+    #model.train()
