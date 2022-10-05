@@ -25,15 +25,17 @@ for directory in classDirectories:
         os.makedirs(trainingImageDirectoryPath)
         os.makedirs(trainingMasksDirectoryPath)
         
+        
         for j in range(i, i + BATCH_SIZE):
             srcImageFilePath = f'{rawImageDirectoryPath}\\{rawImages[j]}'
             srcMaskFilePath = f'{rawMaskDirectoryPath}\\{rawImages[j]}'
             destImageFilePath = f'{trainingImageDirectoryPath}\\{rawImages[j]}'
             destMaskFilePath = f'{trainingMasksDirectoryPath}\\{rawImages[j]}'
 
-            shutil.copy2(srcImageFilePath, destImageFilePath)
-            shutil.copy2(srcMaskFilePath.replace('.png', '.gif'), destMaskFilePath)
-                
+            try:
+                shutil.copy2(srcImageFilePath, destImageFilePath)
+                shutil.copy2(srcMaskFilePath, destMaskFilePath)
+            except: pass                
 
     
     

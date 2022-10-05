@@ -16,17 +16,17 @@ from utils import (
 increment = 1
 LEARNING_RATE = 1e-4
 DEVICE = "cpu"
-BATCH_SIZE = 4
-NUM_EPOCHS = 1
+BATCH_SIZE = 1
+NUM_EPOCHS = 5
 NUM_WORKERS = 2
 IMAGE_HEIGHT = 150
 IMAGE_WIDTH = 150
 PIN_MEMORY = True
 LOAD_MODEL = True
-TRAIN_IMG_DIR = "dataset/training/Building/train_images"
-TRAIN_MASK_DIR = "dataset/training/Building/train_masks"
-VAL_IMG_DIR = "dataset/training/Building/val_images"
-VAL_MASK_DIR = "dataset/training/Building/val_masks" 
+TRAIN_IMG_DIR = "dataset/training/Building/Batches/batch_1/train_images"
+TRAIN_MASK_DIR = "dataset/training/Building/Batches/batch_1/train_masks"
+VAL_IMG_DIR = "dataset/Building/val_images"
+VAL_MASK_DIR = "dataset/Building/val_masks" 
 
 class DoubleConv(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -64,11 +64,9 @@ class UNET(nn.Module):
 
     def forward(self, x):
         skip_connections = []
-        print(x.shape)
         
         if x.shape[3] == 3:
             x = x.permute(0, 3, 1, 2)
-            print(x.shape)
 
         for down in self.downs:
             x = down(x)
@@ -95,8 +93,7 @@ def test():
     x = torch.randn((3, 1, 160, 160))
     model = UNET(in_channels=1, out_channels=1)
     preds = model(x)
-    print(preds.shape)
-    print(x.shape)
+    
     assert preds.shape == x.shape
 
 def train_fn(loader, model, optimizer, loss_fn, scaler):
@@ -118,8 +115,6 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
             scaler.update()
 
             loop.set_postfix(loss=loss.item())
-
-
 
 def main():
     global increment
@@ -184,7 +179,6 @@ def main():
         check_accuracy(val_loader, model, device=DEVICE)
 
         save_predictions_as_imgs(val_loader, model, folder="saved_images/", device=DEVICE)
-
 
 if __name__ == "__main__":
     main()

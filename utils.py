@@ -61,7 +61,7 @@ def check_accuracy(loader, model, device="cuda"):
     print(f"Dice Score: {dice_score/len(loader)}")
     model.train()
 
-def save_predictions_as_imgs(loader, model, folder="save_images/", device="cpu"):
+def save_predictions_as_imgs(loader, model, folder="saved_images/", device="cpu"):
     model.eval()
     for idx, (x, y) in enumerate(loader):
         x = x.to(device=device)
