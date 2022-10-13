@@ -27,7 +27,6 @@ classDropDown = OptionMenu( window, objectClass, *options )
 classImages = []
 history = []
 
-#TODO: Improve
 polygonCoords = []
 polygonCoordsX = []
 polygonCoordsY = []
@@ -171,7 +170,6 @@ def finish():
         classLabel = Label(window, text='0')
         classLabel.place(x=320, y=80)
     else:
-        #TODO: Use a dialog to print the message
         print('Classification Completed')
 
 def writeToDataset():
