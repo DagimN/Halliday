@@ -3,6 +3,8 @@ R&D/
 saved_images/
 __pycache__/
 my_checkpoint.pth.tar
+code_cache.txt
 tempClean.png
 tempRaw.png
-code_cache.txt
+tempVertices.png
+cube.stl
