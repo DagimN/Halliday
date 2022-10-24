@@ -31,19 +31,29 @@ def cleanNoise(edged_image):
     
     edged_image = np.array(edged_image, dtype=np.dtype('f8'))
     cv2.imwrite(tempCleanFilePath, edged_image)
-    return cv2.imread(tempCleanFilePath)   
+    return {'objects': mapObjects, 'image': cv2.imread(tempCleanFilePath)}
 
-def chooseVertices(edged_image):
-    vertices_image = edged_image
+def chooseVertices(mapObjects, cleared_image):
+    vertices_image = cleared_image
     verticeCoordinates = []
     AREA_VIEW = 3
 
     print('Choosing Vertices =>')
-    
-    #TODO: Sort map objects and remove pixels per interval
+
+    for mapObject in mapObjects:
+        verticeObject = []
+        
+        for i in range(AREA_VIEW, len(mapObject), AREA_VIEW):
+            verticeObject.append(mapObject[i])
+            
+        verticeCoordinates.append(verticeObject)
+            
+        for pixel in verticeObject:
+            vertices_image[pixel[1], pixel[0]] = 128
+
     vertices_image = np.array(vertices_image, dtype=np.dtype('f8'))
     cv2.imwrite(tempVerticeFilePath, vertices_image)
-    return {'coords': np.array(verticeCoordinates), 'image': cv2.imread(tempVerticeFilePath)}
+    return {'coords': verticeCoordinates, 'image': cv2.imread(tempVerticeFilePath)}   
 
 def travelPath(xIndex, yIndex, viewedPixelCoordinates, validPixelCoordinates, mapObjects, edged_image):
     rows = edged_image.shape[0]
@@ -62,29 +72,27 @@ def travelPath(xIndex, yIndex, viewedPixelCoordinates, validPixelCoordinates, ma
     directions = [north, northEast, east, southEast, south, southWest, west, northWest]
     pathExists = False
     
-    if not mapObjects == None:
-        if not viewedPixelCoordinates.__contains__(center):
-            viewedPixelCoordinates.append(center)
+    
+    if not viewedPixelCoordinates.__contains__(center):
+        viewedPixelCoordinates.append(center)
             
-            if edged_image[center[1], center[0]] == 255:
-                validPixelCoordinates.append(center)
+        if edged_image[center[1], center[0]] == 255:
+            validPixelCoordinates.append(center)
                 
-                for direction in directions: 
-                    if edged_image[direction[1], direction[0]] == 255:
-                        pathExists = True
-                        travelPath(direction[0], direction[1], viewedPixelCoordinates, validPixelCoordinates, mapObjects, edged_image) 
+            for direction in directions: 
+                if edged_image[direction[1], direction[0]] == 255:
+                    pathExists = True
+                    travelPath(direction[0], direction[1], viewedPixelCoordinates, validPixelCoordinates, mapObjects, edged_image) 
 
-            if not pathExists and not len(validPixelCoordinates) == 0:
-                mapObject = []
+        if not pathExists and not len(validPixelCoordinates) == 0:
+            mapObject = []
                 
-                for pixel in validPixelCoordinates:
-                    mapObject.append(pixel)
+            for pixel in validPixelCoordinates:
+                mapObject.append(pixel)
                 
-                mapObjects.append(mapObject)
-                validPixelCoordinates.clear()
-    else:
-        searchVertices(viewedPixelCoordinates, directions, edged_image, center) 
-                          
+            mapObjects.append(mapObject)
+            validPixelCoordinates.clear()
+
 def showImages(loaded_image, edged_image, clear_edged_image, vertices_image):
     plt.figure(figsize=(50,50))
     
@@ -113,16 +121,19 @@ def showImages(loaded_image, edged_image, clear_edged_image, vertices_image):
 def createMesh(verticesCoords):
     vertices = []
     faces = []
-    for coords in verticesCoords:
+    for coords in verticesCoords[1]:
         vertices.append((coords[0], coords[1], 0))
-    for coords in verticesCoords:
+    for coords in verticesCoords[1]:
         vertices.append((coords[0], coords[1], 30))
 
+    #TODO: Optimize Construction
     for index, vertice in enumerate(vertices):
         if vertice[2] == 0:
             faces.append([index, (index + 1) % len(vertices), vertices.index((vertice[0], vertice[1], 30))])
+            #faces.append([index, vertices.index((vertice[0], vertice[1], 30)), (vertices.index((vertice[0], vertice[1], 30)) + 1) % len(vertices)])
         else:
-            faces.append([index, (index + 1) % len(vertices), vertices.index((vertice[0], vertice[1], 0))])
+            faces.append([(index - 1) % len(vertices), vertices.index((vertice[0], vertice[1], 0)), index])
+        #     faces.append([index, vertices.index((vertice[0], vertice[1], 0)), (vertices.index((vertice[0], vertice[1], 0)) + 1) % len(vertices)])
 
     vertices = np.array(vertices)
     faces = np.array(faces)
@@ -149,12 +160,12 @@ def main():
     edged_image = cv2.Canny(non_black_image, threshold1=64, threshold2=512)
     cv2.imwrite(tempFilePath, edged_image)
     
-    clear_edged_image = cleanNoise(edged_image)
-    vertices_image = cv2.cvtColor(clear_edged_image,cv2.COLOR_BGR2GRAY)
-    verticesDict= chooseVertices(vertices_image)
+    cleared_image = cleanNoise(edged_image)
+
+    verticesDict= chooseVertices(cleared_image['objects'], cleared_image['image'])
 
     createMesh(verticesDict['coords'])
-    showImages(loaded_image=loaded_image, edged_image=cv2.imread(tempFilePath), clear_edged_image=clear_edged_image, vertices_image=verticesDict['image'])
+    showImages(loaded_image=loaded_image, edged_image=cv2.imread(tempFilePath), clear_edged_image=cv2.imread(tempCleanFilePath), vertices_image=verticesDict['image'])
 
 if __name__ == "__main__":
     main()
