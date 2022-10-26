@@ -33,28 +33,6 @@ def cleanNoise(edged_image):
     cv2.imwrite(tempCleanFilePath, edged_image)
     return {'objects': mapObjects, 'image': cv2.imread(tempCleanFilePath)}
 
-def chooseVertices(mapObjects, cleared_image):
-    vertices_image = cleared_image
-    verticeCoordinates = []
-    AREA_VIEW = 3
-
-    print('Choosing Vertices =>')
-
-    for mapObject in mapObjects:
-        verticeObject = []
-        
-        for i in range(AREA_VIEW, len(mapObject), AREA_VIEW):
-            verticeObject.append(mapObject[i])
-            
-        verticeCoordinates.append(verticeObject)
-            
-        for pixel in verticeObject:
-            vertices_image[pixel[1], pixel[0]] = 128
-
-    vertices_image = np.array(vertices_image, dtype=np.dtype('f8'))
-    cv2.imwrite(tempVerticeFilePath, vertices_image)
-    return {'coords': verticeCoordinates, 'image': cv2.imread(tempVerticeFilePath)}   
-
 def travelPath(xIndex, yIndex, viewedPixelCoordinates, validPixelCoordinates, mapObjects, edged_image):
     rows = edged_image.shape[0]
     columns = edged_image.shape[1]
@@ -71,7 +49,6 @@ def travelPath(xIndex, yIndex, viewedPixelCoordinates, validPixelCoordinates, ma
 
     directions = [north, northEast, east, southEast, south, southWest, west, northWest]
     pathExists = False
-    
     
     if not viewedPixelCoordinates.__contains__(center):
         viewedPixelCoordinates.append(center)
@@ -93,38 +70,35 @@ def travelPath(xIndex, yIndex, viewedPixelCoordinates, validPixelCoordinates, ma
             mapObjects.append(mapObject)
             validPixelCoordinates.clear()
 
-def showImages(loaded_image, edged_image, clear_edged_image, vertices_image):
+def showImages(loaded_image, edged_image, clear_edged_image):
     plt.figure(figsize=(50,50))
     
-    plt.subplot(1,4,1)
+    plt.subplot(1,3,1)
     plt.imshow(loaded_image,cmap="gray")
     plt.axis("off")
     plt.title("Original Image")
 
-    plt.subplot(1,4,2)
+    plt.subplot(1,3,2)
     plt.imshow(edged_image,cmap="gray")
     plt.axis("off")
     plt.title("Canny Edge Detected Image")
 
-    plt.subplot(1,4,3)
+    plt.subplot(1,3,3)
     plt.imshow(clear_edged_image,cmap="gray")
     plt.axis("off")
     plt.title("Noise Cleared")
 
-    plt.subplot(1,4,4)
-    plt.imshow(vertices_image,cmap="gray")
-    plt.axis("off")
-    plt.title("Choosen Vertices")
-
     plt.show()
 
-def createMesh(verticesCoords):
+def createMesh(mapObjects):
     vertices = []
     faces = []
-    for coords in verticesCoords[1]:
-        vertices.append((coords[0], coords[1], 0))
-    for coords in verticesCoords[1]:
-        vertices.append((coords[0], coords[1], 30))
+    
+    for verticesCoords in mapObjects:
+        for coords in verticesCoords:
+            vertices.append((coords[0], coords[1], 0))
+        for coords in verticesCoords:
+            vertices.append((coords[0], coords[1], 30))
 
     #TODO: Optimize Construction
     for index, vertice in enumerate(vertices):
@@ -162,10 +136,8 @@ def main():
     
     cleared_image = cleanNoise(edged_image)
 
-    verticesDict= chooseVertices(cleared_image['objects'], cleared_image['image'])
-
-    createMesh(verticesDict['coords'])
-    showImages(loaded_image=loaded_image, edged_image=cv2.imread(tempFilePath), clear_edged_image=cv2.imread(tempCleanFilePath), vertices_image=verticesDict['image'])
+    createMesh(cleared_image['objects'])
+    showImages(loaded_image=loaded_image, edged_image=cv2.imread(tempFilePath), clear_edged_image=cv2.imread(tempCleanFilePath))
 
 if __name__ == "__main__":
     main()
